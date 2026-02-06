@@ -1,6 +1,7 @@
 plugins {
-    id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
+    // FIX 1: Added specific versions here so Gradle can find them
+    id 'com.android.application' version '8.2.0'
+    id 'org.jetbrains.kotlin.android' version '1.9.20'
 }
 
 android {
@@ -31,27 +32,39 @@ android {
         jvmTarget = '1.8'
     }
 
+    // FIX 2: Enabled Jetpack Compose (Required for the code I gave you)
     buildFeatures {
-        viewBinding true
+        compose true
+        viewBinding true 
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.4'
     }
 }
 
 dependencies {
+    // FIX 3: Added Compose Dependencies so the UI code works
+    implementation platform('androidx.compose:compose-bom:2024.02.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.activity:activity-compose:1.8.2'
+    
+    // Core Android Stuff
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     
-    // Kotlin Coroutines
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    // Networking (Retrofit is easier, but keeping your OkHttp/Gson if you prefer)
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     
-    // Networking
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    implementation 'com.google.code.gson:gson:2.10.1'
+    // Widget Support
+    implementation "androidx.glance:glance-appwidget:1.0.0"
+    implementation "androidx.glance:glance-material3:1.0.0"
     
-    // Preferences
-    implementation 'androidx.preference:preference-ktx:1.2.1'
-    
-    // Work Manager for scheduling
+    // Work Manager
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
 }
