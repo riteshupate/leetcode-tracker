@@ -1,0 +1,55 @@
+================================================================================
+LeetCode Tracker - Build Instructions
+================================================================================
+
+This Android project requires Android Studio to build properly.
+
+OPTION 1: Build with Android Studio (RECOMMENDED)
+--------------------------------------------------
+1. Install Android Studio from: https://developer.android.com/studio
+2. Open Android Studio
+3. Click "File > Open" and select this LeetCodeTracker folder
+4. Wait for Gradle sync to complete (this downloads dependencies)
+5. Click "Build > Build Bundle(s) / APK(s) > Build APK(s)"
+6. Once completed, click the "locate" link to find your APK
+7. The APK will be at: app/build/outputs/apk/debug/app-debug.apk
+
+OPTION 2: Command Line Build
+-----------------------------
+Prerequisites:
+- Install Android SDK and set ANDROID_HOME environment variable
+- Install JDK 8 or higher
+
+Commands:
+cd LeetCodeTracker
+chmod +x gradlew
+./gradlew assembleDebug
+
+The APK will be created at: app/build/outputs/apk/debug/app-debug.apk
+
+INSTALLATION
+------------
+1. Transfer the APK file to your Android device
+2. On your device, go to Settings > Security
+3. Enable "Install from Unknown Sources" or "Install Unknown Apps"
+4. Use a file manager to locate the APK
+5. Tap the APK to install
+6. Grant requested permissions
+
+MINIMUM REQUIREMENTS
+-------------------
+- Android 8.0 (API 26) or higher
+- Internet connection for initial data fetch
+- Notification permission (Android 13+)
+
+FIRST TIME SETUP
+----------------
+1. Open the app
+2. Enter your LeetCode username
+3. Click "Save and Load Data"
+4. Set your reminder time
+5. Add the widget to your home screen (optional)
+
+For detailed usage instructions, see README.md
+
+================================================================================
