@@ -12,13 +12,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: set up JDK 11
-      uses: actions/setup-java@v4
+    - name: Build with Gradle
+      uses: gradle/actions/setup-gradle@v3
       with:
-        java-version: '11'
-        distribution: 'temurin'
-        cache: gradle
+        gradle-version: current
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
