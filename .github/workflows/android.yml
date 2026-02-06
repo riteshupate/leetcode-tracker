@@ -14,7 +14,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # DEBUG STEP: This prints the file structure to the logs
+    # (Optional) You can keep or remove this debug step
     - name: List files
       run: ls -R
 
@@ -27,7 +27,15 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
-        gradle-version: current
+        # FIXED: Changed 'current' (Gradle 9.x) to '8.6' to support your plugins
+        gradle-version: '8.6'
 
     - name: Build with Gradle
       run: gradle build
+      
+    # (Optional) Add this back if you want to download the APK after the build
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: build/outputs/apk/debug/app-debug.apk
