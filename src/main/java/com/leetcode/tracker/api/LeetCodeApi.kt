@@ -6,8 +6,8 @@ import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
-import java.util.Calendar
 import java.util.concurrent.TimeUnit
+import java.util.Calendar
 
 class LeetCodeApi {
     
@@ -39,11 +39,10 @@ class LeetCodeApi {
                 addProperty("query", query)
             }
             
-            // FIXED: Use MediaType.parse instead of extension function
+            // --- FIX START: Standard OkHttp syntax ---
             val mediaType = MediaType.parse("application/json; charset=utf-8")
-            
-            // FIXED: Use RequestBody.create instead of extension function
             val body = RequestBody.create(mediaType, json.toString())
+            // --- FIX END ---
             
             val request = Request.Builder()
                 .url("https://leetcode.com/graphql")
@@ -55,7 +54,7 @@ class LeetCodeApi {
             val response = client.newCall(request).execute()
             
             if (response.isSuccessful) {
-                // FIXED: Use .body() method to avoid "package-private" access error
+                // Explicitly use parentheses .body() to avoid access errors
                 val responseBody = response.body()?.string()
                 
                 if (responseBody != null) {
