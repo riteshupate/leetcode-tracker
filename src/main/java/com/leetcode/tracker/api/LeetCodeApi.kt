@@ -2,10 +2,10 @@ package com.leetcode.tracker.api
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.RequestBody
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -39,8 +39,11 @@ class LeetCodeApi {
                 addProperty("query", query)
             }
             
-            val body = json.toString()
-                .toRequestBody("application/json".toMediaType())
+            // FIXED: Use standard MediaType.parse (Compatible with all OkHttp versions)
+            val mediaType = MediaType.parse("application/json; charset=utf-8")
+            
+            // FIXED: Use standard RequestBody.create (Compatible with all OkHttp versions)
+            val body = RequestBody.create(mediaType, json.toString())
             
             val request = Request.Builder()
                 .url("https://leetcode.com/graphql")
@@ -52,7 +55,9 @@ class LeetCodeApi {
             val response = client.newCall(request).execute()
             
             if (response.isSuccessful) {
-                val responseBody = response.body?.string()
+                // FIXED: Use .body() method to avoid "package-private" access errors
+                val responseBody = response.body()?.string()
+                
                 if (responseBody != null) {
                     val jsonResponse = gson.fromJson(responseBody, JsonObject::class.java)
                     val submissionCalendar = jsonResponse
