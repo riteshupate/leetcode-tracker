@@ -39,10 +39,8 @@ class LeetCodeApi {
                 addProperty("query", query)
             }
             
-            // FIXED: Using OkHttp 4 extension function
+            // FIXED: Using correct syntax for OkHttp 4
             val mediaType = "application/json; charset=utf-8".toMediaType()
-            
-            // FIXED: Using OkHttp 4 extension function
             val body = json.toString().toRequestBody(mediaType)
             
             val request = Request.Builder()
