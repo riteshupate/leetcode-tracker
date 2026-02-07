@@ -2,12 +2,12 @@ package com.leetcode.tracker.api
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
-import java.util.concurrent.TimeUnit
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 class LeetCodeApi {
     
@@ -39,10 +39,11 @@ class LeetCodeApi {
                 addProperty("query", query)
             }
             
-            // --- FIX START: Standard OkHttp syntax ---
-            val mediaType = MediaType.parse("application/json; charset=utf-8")
-            val body = RequestBody.create(mediaType, json.toString())
-            // --- FIX END ---
+            // FIXED: Using OkHttp 4 extension function
+            val mediaType = "application/json; charset=utf-8".toMediaType()
+            
+            // FIXED: Using OkHttp 4 extension function
+            val body = json.toString().toRequestBody(mediaType)
             
             val request = Request.Builder()
                 .url("https://leetcode.com/graphql")
@@ -54,8 +55,8 @@ class LeetCodeApi {
             val response = client.newCall(request).execute()
             
             if (response.isSuccessful) {
-                // Explicitly use parentheses .body() to avoid access errors
-                val responseBody = response.body()?.string()
+                // FIXED: Accessing 'body' as a property (val), not a function
+                val responseBody = response.body?.string()
                 
                 if (responseBody != null) {
                     val jsonResponse = gson.fromJson(responseBody, JsonObject::class.java)
