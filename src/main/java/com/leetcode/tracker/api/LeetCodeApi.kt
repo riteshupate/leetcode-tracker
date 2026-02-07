@@ -39,10 +39,10 @@ class LeetCodeApi {
                 addProperty("query", query)
             }
             
-            // FIXED: Use standard MediaType.parse (Compatible with all OkHttp versions)
+            // FIXED: Use MediaType.parse instead of extension function
             val mediaType = MediaType.parse("application/json; charset=utf-8")
             
-            // FIXED: Use standard RequestBody.create (Compatible with all OkHttp versions)
+            // FIXED: Use RequestBody.create instead of extension function
             val body = RequestBody.create(mediaType, json.toString())
             
             val request = Request.Builder()
@@ -55,7 +55,7 @@ class LeetCodeApi {
             val response = client.newCall(request).execute()
             
             if (response.isSuccessful) {
-                // FIXED: Use .body() method to avoid "package-private" access errors
+                // FIXED: Use .body() method to avoid "package-private" access error
                 val responseBody = response.body()?.string()
                 
                 if (responseBody != null) {
