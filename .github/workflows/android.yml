@@ -33,9 +33,9 @@ jobs:
     - name: Build with Gradle
       run: gradle build
       
-    # (Optional) Add this back if you want to download the APK after the build
+    # FIXED: Use a wildcard (*) to find the APK regardless of its name
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
-        path: build/outputs/apk/debug/app-debug.apk
+        name: debug-apk
+        path: build/outputs/apk/debug/*.apk
