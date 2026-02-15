@@ -9,7 +9,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
-// 1. Create a data class to hold both pieces of data
+// Data class to hold the specific data we need
 data class LeetCodeUserData(
     val totalSolved: Int,
     val submissionCalendar: Map<String, Int>
@@ -24,7 +24,6 @@ class LeetCodeApi {
     
     private val gson = Gson()
     
-    // 2. Change return type to LeetCodeUserData
     fun getUserSubmissions(username: String): LeetCodeUserData? {
         try {
             val query = """
@@ -65,13 +64,17 @@ class LeetCodeApi {
                     val jsonResponse = gson.fromJson(responseBody, JsonObject::class.java)
                     val matchedUser = jsonResponse.getAsJsonObject("data")?.getAsJsonObject("matchedUser")
                     
-                    // 3. Extract Calendar
-                    val calendarJson = matchedUser?.get("submissionCalendar")?.asString
+                    if (matchedUser == null || matchedUser.isJsonNull) {
+                        return null
+                    }
+
+                    // 1. Extract Calendar
+                    val calendarJson = matchedUser.get("submissionCalendar")?.asString
                     val calendarMap = parseSubmissionCalendar(calendarJson)
 
-                    // 4. Extract Actual Total Solved (All difficulties)
+                    // 2. Extract Actual Total Solved (All difficulties)
                     var totalSolved = 0
-                    val submitStats = matchedUser?.getAsJsonObject("submitStats")
+                    val submitStats = matchedUser.getAsJsonObject("submitStats")
                     val acSubmissionNum = submitStats?.getAsJsonArray("acSubmissionNum")
                     
                     acSubmissionNum?.forEach { element ->
@@ -94,25 +97,32 @@ class LeetCodeApi {
     
     private fun parseSubmissionCalendar(calendarJson: String?): Map<String, Int> {
         if (calendarJson == null) return emptyMap()
+        
         val result = mutableMapOf<String, Int>()
+        
         try {
             val calendarData = gson.fromJson(calendarJson, JsonObject::class.java)
+            
             calendarData.entrySet().forEach { entry ->
                 val timestamp = entry.key.toLong()
                 val count = entry.value.asInt
+                
                 val calendar = Calendar.getInstance()
                 calendar.timeInMillis = timestamp * 1000
+                
                 val dateKey = String.format(
                     "%d-%02d-%02d",
                     calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH) + 1,
                     calendar.get(Calendar.DAY_OF_MONTH)
                 )
+                
                 result[dateKey] = count
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
+        
         return result
     }
 }
