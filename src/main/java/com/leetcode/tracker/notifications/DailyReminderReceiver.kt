@@ -22,6 +22,33 @@ class DailyReminderReceiver : BroadcastReceiver() {
         
         if (reminderEnabled) {
             checkAndNotify(context)
+            
+            // FIXED: Reschedule the next alarm for tomorrow
+            rescheduleNextAlarm(context, sharedPrefs)
+        }
+    }
+    private fun rescheduleNextAlarm(context: Context, sharedPrefs: android.content.SharedPreferences) {
+        val hour = sharedPrefs.getInt("reminder_hour", 20)
+        val minute = sharedPrefs.getInt("reminder_minute", 0)
+        
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            add(Calendar.DAY_OF_YEAR, 1) // Schedule for tomorrow
+        }
+
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        val intent = Intent(context, DailyReminderReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+        } else {
+            alarmManager.setExact(android.app.AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
         }
     }
     
@@ -35,11 +62,10 @@ class DailyReminderReceiver : BroadcastReceiver() {
         
         CoroutineScope(Dispatchers.IO).launch {
             val leetCodeApi = LeetCodeApi()
-            val data = leetCodeApi.getUserSubmissions(userId)
-            
-            if (data != null) {
-                val todayKey = getTodayKey()
-                val solvedToday = data[todayKey] ?: 0
+            val userData = leetCodeApi.getUserSubmissions(userId)
+            if (userData != null) {
+             val todayKey = getTodayKey()
+             val solvedToday = userData.submissionCalendar[todayKey] ?: 0
                 
                 if (solvedToday == 0) {
                     showNotification(context)
