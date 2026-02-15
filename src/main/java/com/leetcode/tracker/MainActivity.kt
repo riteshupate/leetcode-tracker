@@ -9,12 +9,17 @@ import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
-import android.widget.GridLayout
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -30,12 +35,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     
     private lateinit var userIdInput: EditText
     private lateinit var saveButton: Button
-    private lateinit var streakGrid: GridLayout
+    private lateinit var streakHeatmap: ImageView
     private lateinit var progressBar: ProgressBar
     private lateinit var totalSolvedText: TextView
     private lateinit var currentStreakText: TextView
@@ -84,7 +90,7 @@ class MainActivity : AppCompatActivity() {
     private fun initViews() {
         userIdInput = findViewById(R.id.userIdInput)
         saveButton = findViewById(R.id.saveButton)
-        streakGrid = findViewById(R.id.streakGrid)
+        streakHeatmap = findViewById(R.id.streakHeatmap)
         progressBar = findViewById(R.id.progressBar)
         totalSolvedText = findViewById(R.id.totalSolvedText)
         currentStreakText = findViewById(R.id.currentStreakText)
@@ -107,7 +113,7 @@ class MainActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
                     if (userData != null) {
-                        displayStreakMap(userData.submissionCalendar)
+                        displayHeatmap(userData.submissionCalendar)
                         displayStats(userData)
                     } else {
                         Toast.makeText(
@@ -129,56 +135,119 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    
-    private fun displayStreakMap(data: Map<String, Int>) {
-        streakGrid.removeAllViews()
-        
+
+    private fun displayHeatmap(data: Map<String, Int>) {
         val daysToShow = 365
+        val cellSize = 20f
+        val cellSpacing = 4f
+        val monthGap = 16f // Gap between months
+        val textHeight = 40f
+        val daysInWeek = 7
+
+        // 1. Calculate Width dynamically
+        var currentX = 0f
+        val calendar = Calendar.getInstance()
+        calendar.add(Calendar.DAY_OF_YEAR, -(daysToShow - 1))
         
-        // Create grid of days (52 weeks x 7 days)
-        for (week in 0 until 52) {
-            for (day in 0 until 7) {
-                val dayIndex = week * 7 + day
-                if (dayIndex < daysToShow) {
-                    val dateCalendar = Calendar.getInstance()
-                    dateCalendar.add(Calendar.DAY_OF_YEAR, -(daysToShow - 1 - dayIndex))
-                    
-                    val dateKey = String.format(
-                        "%d-%02d-%02d",
-                        dateCalendar.get(Calendar.YEAR),
-                        dateCalendar.get(Calendar.MONTH) + 1,
-                        dateCalendar.get(Calendar.DAY_OF_MONTH)
-                    )
-                    
-                    val view = View(this)
-                    val size = resources.getDimensionPixelSize(R.dimen.streak_cell_size)
-                    val margin = resources.getDimensionPixelSize(R.dimen.streak_cell_margin)
-                    
-                    val params = GridLayout.LayoutParams()
-                    params.width = size
-                    params.height = size
-                    params.setMargins(margin, margin, margin, margin)
-                    params.rowSpec = GridLayout.spec(day)
-                    params.columnSpec = GridLayout.spec(week)
-                    view.layoutParams = params
-                    
-                    // Set color based on activity
-                    val count = data[dateKey] ?: 0
-                    view.setBackgroundResource(getStreakColor(count))
-                    
-                    streakGrid.addView(view)
-                }
-            }
+        // Find the start of the week for the first date
+        while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
+            calendar.add(Calendar.DAY_OF_YEAR, -1)
         }
+        val startCalendar = calendar.clone() as Calendar
+
+        // Simulate loop to get width
+        val simCal = startCalendar.clone() as Calendar
+        var prevMonth = -1
+        
+        // We iterate week by week mostly, but day by day logic is safer for month gaps
+        for (i in 0 until daysToShow + 14) { // Add buffer
+            val month = simCal.get(Calendar.MONTH)
+            val dayOfWeek = simCal.get(Calendar.DAY_OF_WEEK) - 1 // 0=Sun, 6=Sat
+
+            if (dayOfWeek == 0) {
+                currentX += cellSize + cellSpacing
+            }
+            
+            // Add extra gap if month changes
+            if (month != prevMonth && prevMonth != -1) {
+                currentX += monthGap
+            }
+            prevMonth = month
+            simCal.add(Calendar.DAY_OF_YEAR, 1)
+            
+            if (simCal.after(Calendar.getInstance())) break
+        }
+
+        val width = currentX.toInt() + 40
+        val height = ((cellSize + cellSpacing) * daysInWeek + textHeight).toInt()
+
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint()
+        val textPaint = Paint().apply {
+            color = Color.parseColor("#8B949E")
+            textSize = 24f
+            typeface = Typeface.DEFAULT_BOLD
+            isAntiAlias = true
+        }
+
+        // 2. Draw
+        currentX = 0f
+        val drawCal = startCalendar.clone() as Calendar
+        prevMonth = -1
+        val today = Calendar.getInstance()
+
+        // Loop until we reach tomorrow
+        while (!drawCal.after(today)) {
+            val month = drawCal.get(Calendar.MONTH)
+            val dayOfWeek = drawCal.get(Calendar.DAY_OF_WEEK) - 1
+            
+            // New column on Sunday
+            if (dayOfWeek == 0) {
+                currentX += cellSize + cellSpacing
+            }
+            
+            // Split by Month
+            if (month != prevMonth && prevMonth != -1) {
+                currentX += monthGap
+                // Draw Month Label
+                val monthName = drawCal.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.US)
+                canvas.drawText(monthName ?: "", currentX, height - 10f, textPaint)
+            }
+            prevMonth = month
+
+            val dateKey = String.format(
+                "%d-%02d-%02d",
+                drawCal.get(Calendar.YEAR),
+                drawCal.get(Calendar.MONTH) + 1,
+                drawCal.get(Calendar.DAY_OF_MONTH)
+            )
+
+            val count = data[dateKey] ?: 0
+            paint.color = getStreakColor(count)
+
+            val top = dayOfWeek * (cellSize + cellSpacing)
+            
+            canvas.drawRoundRect(
+                currentX, top,
+                currentX + cellSize, top + cellSize,
+                4f, 4f,
+                paint
+            )
+
+            drawCal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+
+        streakHeatmap.setImageBitmap(bitmap)
     }
     
     private fun getStreakColor(count: Int): Int {
         return when {
-            count == 0 -> R.drawable.streak_level_0
-            count <= 2 -> R.drawable.streak_level_1
-            count <= 5 -> R.drawable.streak_level_2
-            count <= 10 -> R.drawable.streak_level_3
-            else -> R.drawable.streak_level_4
+            count == 0 -> Color.parseColor("#EBEDF0") // Gray
+            count <= 2 -> Color.parseColor("#9BE9A8") // Light Green
+            count <= 5 -> Color.parseColor("#40C463") // Medium Green
+            count <= 10 -> Color.parseColor("#30A14E") // Dark Green
+            else -> Color.parseColor("#216E39")       // Darkest Green
         }
     }
     
@@ -256,7 +325,22 @@ class MainActivity : AppCompatActivity() {
         }
         
         // Use exact alarm for accurate timing
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    pendingIntent
+                )
+            } else {
+                // Fallback or request permission - for now just use setExact (will work if permission granted)
+                 alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    pendingIntent
+                )
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 calendar.timeInMillis,
