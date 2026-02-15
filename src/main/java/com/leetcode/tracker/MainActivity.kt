@@ -101,19 +101,16 @@ class MainActivity : AppCompatActivity() {
         
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val submissionData = leetCodeApi.getUserSubmissions(userId)
+                // FIXED: Returns LeetCodeUserData object now
+                val userData = leetCodeApi.getUserSubmissions(userId)
                 
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
-                    if (submissionData != null) {
-                        displayStreakMap(submissionData)
-                        displayStats(submissionData)
+                    if (userData != null) {
+                        displayStreakMap(userData.submissionCalendar)
+                        displayStats(userData) // Pass full object
                     } else {
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Failed to load data. Check user ID.",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        Toast.makeText(this@MainActivity, "Failed to load", Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {
@@ -182,9 +179,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    private fun displayStats(data: Map<String, Int>) {
-        val total = data.values.sum()
-        val streak = calculateCurrentStreak(data)
+    private fun displayStats(data: com.leetcode.tracker.api.LeetCodeUserData) {
+        val total = data.totalSolved // FIXED: Use actual total from API
+        val streak = calculateCurrentStreak(data.submissionCalendar)
         
         totalSolvedText.text = "Total Solved: $total"
         currentStreakText.text = "Current Streak: $streak days"
@@ -255,12 +252,20 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            calendar.timeInMillis,
-            AlarmManager.INTERVAL_DAY,
-            pendingIntent
-        )
+        // FIXED: Use setExactAndAllowWhileIdle for accurate timing even in Doze mode
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                calendar.timeInMillis,
+                pendingIntent
+            )
+        } else {
+            alarmManager.setExact(
+                AlarmManager.RTC_WAKEUP,
+                calendar.timeInMillis,
+                pendingIntent
+            )
+        }
     }
     
     private fun createNotificationChannel() {
