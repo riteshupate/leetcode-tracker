@@ -212,13 +212,13 @@
                     android:layout_height="wrap_content"
                     android:scrollbars="none">
 
-                    <GridLayout
-                        android:id="@+id/streakGrid"
+                    <ImageView
+                        android:id="@+id/streakHeatmap"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:rowCount="7"
-                        android:columnCount="52"
-                        android:padding="8dp"/>
+                        android:scaleType="fitStart"
+                        android:adjustViewBounds="true"
+                        android:contentDescription="Activity Heatmap"/>
 
                 </HorizontalScrollView>
 
