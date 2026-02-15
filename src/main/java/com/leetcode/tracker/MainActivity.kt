@@ -140,9 +140,11 @@ class MainActivity : AppCompatActivity() {
         val daysToShow = 365
         val cellSize = 20f
         val cellSpacing = 4f
-        val monthGap = 16f // Gap between months
         val textHeight = 40f
         val daysInWeek = 7
+        
+        // FIXED: Month gap is now exactly one full column width (cell + spacing)
+        val monthGap = cellSize + cellSpacing 
 
         // 1. Calculate Width dynamically
         var currentX = 0f
@@ -155,12 +157,11 @@ class MainActivity : AppCompatActivity() {
         }
         val startCalendar = calendar.clone() as Calendar
 
-        // Simulate loop to get width
+        // Simulate loop to get exact width including separator columns
         val simCal = startCalendar.clone() as Calendar
         var prevMonth = -1
         
-        // We iterate week by week mostly, but day by day logic is safer for month gaps
-        for (i in 0 until daysToShow + 14) { // Add buffer
+        while (!simCal.after(Calendar.getInstance())) {
             val month = simCal.get(Calendar.MONTH)
             val dayOfWeek = simCal.get(Calendar.DAY_OF_WEEK) - 1 // 0=Sun, 6=Sat
 
@@ -168,14 +169,12 @@ class MainActivity : AppCompatActivity() {
                 currentX += cellSize + cellSpacing
             }
             
-            // Add extra gap if month changes
+            // If month changes, we add the separator space
             if (month != prevMonth && prevMonth != -1) {
-                currentX += monthGap
+                currentX += monthGap 
             }
             prevMonth = month
             simCal.add(Calendar.DAY_OF_YEAR, 1)
-            
-            if (simCal.after(Calendar.getInstance())) break
         }
 
         val width = currentX.toInt() + 40
@@ -191,13 +190,12 @@ class MainActivity : AppCompatActivity() {
             isAntiAlias = true
         }
 
-        // 2. Draw
+        // 2. Draw with separation logic
         currentX = 0f
         val drawCal = startCalendar.clone() as Calendar
         prevMonth = -1
         val today = Calendar.getInstance()
 
-        // Loop until we reach tomorrow
         while (!drawCal.after(today)) {
             val month = drawCal.get(Calendar.MONTH)
             val dayOfWeek = drawCal.get(Calendar.DAY_OF_WEEK) - 1
@@ -207,10 +205,11 @@ class MainActivity : AppCompatActivity() {
                 currentX += cellSize + cellSpacing
             }
             
-            // Split by Month
+            // Check for Month Change -> Insert Space Column
             if (month != prevMonth && prevMonth != -1) {
-                currentX += monthGap
-                // Draw Month Label
+                currentX += monthGap // This adds the full empty column space
+                
+                // Draw Month Label in the gap
                 val monthName = drawCal.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.US)
                 canvas.drawText(monthName ?: "", currentX, height - 10f, textPaint)
             }
@@ -225,7 +224,6 @@ class MainActivity : AppCompatActivity() {
 
             val count = data[dateKey] ?: 0
             paint.color = getStreakColor(count)
-
             val top = dayOfWeek * (cellSize + cellSpacing)
             
             canvas.drawRoundRect(
@@ -243,11 +241,11 @@ class MainActivity : AppCompatActivity() {
     
     private fun getStreakColor(count: Int): Int {
         return when {
-            count == 0 -> Color.parseColor("#EBEDF0") // Gray
-            count <= 2 -> Color.parseColor("#9BE9A8") // Light Green
-            count <= 5 -> Color.parseColor("#40C463") // Medium Green
-            count <= 10 -> Color.parseColor("#30A14E") // Dark Green
-            else -> Color.parseColor("#216E39")       // Darkest Green
+            count == 0 -> Color.parseColor("#2D333B") // Dark Gray
+            count <= 2 -> Color.parseColor("#0E4429") // Dark Green
+            count <= 5 -> Color.parseColor("#006D32") // Medium Green
+            count <= 10 -> Color.parseColor("#26A641") // Bright Green
+            else -> Color.parseColor("#39D353")       // Neon Green
         }
     }
     
@@ -324,7 +322,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
-        // Use exact alarm for accurate timing
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (alarmManager.canScheduleExactAlarms()) {
                 alarmManager.setExactAndAllowWhileIdle(
@@ -333,7 +330,6 @@ class MainActivity : AppCompatActivity() {
                     pendingIntent
                 )
             } else {
-                // Fallback or request permission - for now just use setExact (will work if permission granted)
                  alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
                     calendar.timeInMillis,
