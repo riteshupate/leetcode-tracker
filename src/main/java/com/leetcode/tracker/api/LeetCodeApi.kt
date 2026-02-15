@@ -9,6 +9,12 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
+// 1. Create a data class to hold both pieces of data
+data class LeetCodeUserData(
+    val totalSolved: Int,
+    val submissionCalendar: Map<String, Int>
+)
+
 class LeetCodeApi {
     
     private val client = OkHttpClient.Builder()
@@ -18,7 +24,8 @@ class LeetCodeApi {
     
     private val gson = Gson()
     
-    fun getUserSubmissions(username: String): Map<String, Int>? {
+    // 2. Change return type to LeetCodeUserData
+    fun getUserSubmissions(username: String): LeetCodeUserData? {
         try {
             val query = """
                 {
@@ -39,7 +46,6 @@ class LeetCodeApi {
                 addProperty("query", query)
             }
             
-            // FIXED: Using correct syntax for OkHttp 4
             val mediaType = "application/json; charset=utf-8".toMediaType()
             val body = json.toString().toRequestBody(mediaType)
             
@@ -53,18 +59,29 @@ class LeetCodeApi {
             val response = client.newCall(request).execute()
             
             if (response.isSuccessful) {
-                // FIXED: Accessing 'body' as a property (val), not a function
                 val responseBody = response.body?.string()
                 
                 if (responseBody != null) {
                     val jsonResponse = gson.fromJson(responseBody, JsonObject::class.java)
-                    val submissionCalendar = jsonResponse
-                        .getAsJsonObject("data")
-                        ?.getAsJsonObject("matchedUser")
-                        ?.get("submissionCalendar")
-                        ?.asString
+                    val matchedUser = jsonResponse.getAsJsonObject("data")?.getAsJsonObject("matchedUser")
                     
-                    return parseSubmissionCalendar(submissionCalendar)
+                    // 3. Extract Calendar
+                    val calendarJson = matchedUser?.get("submissionCalendar")?.asString
+                    val calendarMap = parseSubmissionCalendar(calendarJson)
+
+                    // 4. Extract Actual Total Solved (All difficulties)
+                    var totalSolved = 0
+                    val submitStats = matchedUser?.getAsJsonObject("submitStats")
+                    val acSubmissionNum = submitStats?.getAsJsonArray("acSubmissionNum")
+                    
+                    acSubmissionNum?.forEach { element ->
+                        val obj = element.asJsonObject
+                        if (obj.get("difficulty").asString == "All") {
+                            totalSolved = obj.get("count").asInt
+                        }
+                    }
+                    
+                    return LeetCodeUserData(totalSolved, calendarMap)
                 }
             }
             
@@ -77,32 +94,25 @@ class LeetCodeApi {
     
     private fun parseSubmissionCalendar(calendarJson: String?): Map<String, Int> {
         if (calendarJson == null) return emptyMap()
-        
         val result = mutableMapOf<String, Int>()
-        
         try {
             val calendarData = gson.fromJson(calendarJson, JsonObject::class.java)
-            
             calendarData.entrySet().forEach { entry ->
                 val timestamp = entry.key.toLong()
                 val count = entry.value.asInt
-                
                 val calendar = Calendar.getInstance()
                 calendar.timeInMillis = timestamp * 1000
-                
                 val dateKey = String.format(
                     "%d-%02d-%02d",
                     calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH) + 1,
                     calendar.get(Calendar.DAY_OF_MONTH)
                 )
-                
                 result[dateKey] = count
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        
         return result
     }
 }
