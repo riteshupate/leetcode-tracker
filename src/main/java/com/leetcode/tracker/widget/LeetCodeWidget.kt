@@ -65,7 +65,6 @@ class LeetCodeWidget : AppWidgetProvider() {
             if (userId.isNotEmpty()) {
                 CoroutineScope(Dispatchers.IO).launch {
                     val leetCodeApi = LeetCodeApi()
-                    // Fetch the new data object containing both totalSolved and calendar
                     val userData = leetCodeApi.getUserSubmissions(userId)
 
                     if (userData != null) {
@@ -75,10 +74,8 @@ class LeetCodeWidget : AppWidgetProvider() {
                         val todayKey = getTodayKey()
                         val solvedToday = (data[todayKey] ?: 0) > 0
 
-                        // Draw the improved heatmap
                         val heatmapBitmap = drawHeatmap(data)
 
-                        // Update TextViews with clear labels (No emojis)
                         views.setTextViewText(R.id.widgetStreak, "$streak Days")
                         views.setTextViewText(R.id.widgetTotal, "$total Solved")
                         
@@ -87,15 +84,12 @@ class LeetCodeWidget : AppWidgetProvider() {
                             if (solvedToday) "Completed" else "Unfinished"
                         )
                         
-                        // Text Color: Green if done, Orange/Yellow if not
                         views.setTextColor(
                             R.id.widgetTodayStatus,
                             if (solvedToday) Color.parseColor("#39D353") else Color.parseColor("#FFA726")
                         )
                         
-                        // Set the drawn bitmap to the ImageView
                         views.setImageViewBitmap(R.id.widgetHeatmap, heatmapBitmap)
-
                         appWidgetManager.updateAppWidget(appWidgetId, views)
                     }
                 }
@@ -107,111 +101,102 @@ class LeetCodeWidget : AppWidgetProvider() {
             }
         }
 
-        /**
-         * Draws the heatmap with GitHub-style spacing and month labels
-         */
         private fun drawHeatmap(data: Map<String, Int>): Bitmap {
             val weeksToShow = 20
             val daysInWeek = 7
             val cellSize = 20f
             val spacing = 4f
             val monthLabelHeight = 30f
-            val monthGap = 15f // Gap between months
+            val monthGap = 15f 
             
-            // 1. Calculate Width dynamically to account for Month Gaps
+            // 1. Calculate Width
             var currentX = 0f
             val calendar = Calendar.getInstance()
-            // Move back (weeksToShow - 1) weeks to find start date
             calendar.add(Calendar.WEEK_OF_YEAR, -(weeksToShow - 1))
-            calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
+            // Start from Sunday of that week
+            while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
+                 calendar.add(Calendar.DAY_OF_YEAR, -1)
+            }
             
-            // We need to simulate the loop once to get the exact bitmap width
-            val simCalendar = calendar.clone() as Calendar
-            for (w in 0 until weeksToShow) {
-                val currentMonth = simCalendar.get(Calendar.MONTH)
-                simCalendar.add(Calendar.WEEK_OF_YEAR, 1)
-                val nextMonth = simCalendar.get(Calendar.MONTH)
-                
-                currentX += cellSize + spacing
-                // Add extra space if the month changes
-                if (currentMonth != nextMonth && w < weeksToShow - 1) {
-                    currentX += monthGap 
-                }
+            val startCal = calendar.clone() as Calendar
+            var prevMonth = -1
+            val today = Calendar.getInstance()
+            
+            // Sim loop
+            val simCal = startCal.clone() as Calendar
+            while (!simCal.after(today)) {
+                val month = simCal.get(Calendar.MONTH)
+                val dayOfWeek = simCal.get(Calendar.DAY_OF_WEEK) - 1
+
+                if (dayOfWeek == 0) currentX += cellSize + spacing
+                if (month != prevMonth && prevMonth != -1) currentX += monthGap
+                prevMonth = month
+                simCal.add(Calendar.DAY_OF_YEAR, 1)
             }
 
-            val width = currentX.toInt() + 20 // Add some padding
+            val width = currentX.toInt() + 20
             val height = ((cellSize + spacing) * daysInWeek + monthLabelHeight).toInt()
             
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             val paint = Paint()
             val textPaint = Paint().apply {
-                color = Color.parseColor("#8B949E") // Gray text for months
+                color = Color.parseColor("#8B949E") 
                 textSize = 20f
                 typeface = Typeface.DEFAULT_BOLD
                 isAntiAlias = true
             }
 
-            // Reset Calendar and X position for actual drawing
+            // 2. Draw
             currentX = 0f
-            
-            for (w in 0 until weeksToShow) {
-                // Check Month for Label
-                val currentMonth = calendar.get(Calendar.MONTH)
-                val monthName = calendar.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.US)
-                
-                // Draw Month Name if it's the first week of that month displayed
-                val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH)
-                // Draw label if it's the start of the widget OR start of a month (~1st week)
-                if (dayOfMonth <= 7 || w == 0) {
-                     canvas.drawText(monthName ?: "", currentX, height - 5f, textPaint)
-                }
+            prevMonth = -1
+            val drawCal = startCal.clone() as Calendar
 
-                for (d in 0 until daysInWeek) {
-                    val dateKey = String.format(
-                        "%d-%02d-%02d",
-                        calendar.get(Calendar.YEAR),
-                        calendar.get(Calendar.MONTH) + 1,
-                        calendar.get(Calendar.DAY_OF_MONTH)
-                    )
+            while (!drawCal.after(today)) {
+                val month = drawCal.get(Calendar.MONTH)
+                val dayOfWeek = drawCal.get(Calendar.DAY_OF_WEEK) - 1
 
-                    val count = data[dateKey] ?: 0
-                    paint.color = getStreakColor(count)
-                    
-                    val top = d * (cellSize + spacing)
-                    
-                    // Draw separated rounded rectangle for the day
-                    canvas.drawRoundRect(
-                        currentX, top, 
-                        currentX + cellSize, top + cellSize, 
-                        4f, 4f, 
-                        paint
-                    )
+                if (dayOfWeek == 0) currentX += cellSize + spacing
+                
+                if (month != prevMonth && prevMonth != -1) {
+                    currentX += monthGap
+                    // Label
+                    val monthName = drawCal.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.US)
+                    canvas.drawText(monthName ?: "", currentX, height - 5f, textPaint)
+                }
+                prevMonth = month
 
-                    calendar.add(Calendar.DAY_OF_YEAR, 1)
-                }
+                val dateKey = String.format(
+                    "%d-%02d-%02d",
+                    drawCal.get(Calendar.YEAR),
+                    drawCal.get(Calendar.MONTH) + 1,
+                    drawCal.get(Calendar.DAY_OF_MONTH)
+                )
+
+                val count = data[dateKey] ?: 0
+                paint.color = getStreakColor(count)
                 
-                // Check if next week is a new month to add gap
-                val checkNextCal = calendar.clone() as Calendar
-                val nextMonth = checkNextCal.get(Calendar.MONTH)
+                val top = dayOfWeek * (cellSize + spacing)
                 
-                currentX += cellSize + spacing
-                
-                // Add spacing if month changes
-                if (currentMonth != nextMonth && w < weeksToShow - 1) {
-                     currentX += monthGap
-                }
+                canvas.drawRoundRect(
+                    currentX, top, 
+                    currentX + cellSize, top + cellSize, 
+                    4f, 4f, 
+                    paint
+                )
+
+                drawCal.add(Calendar.DAY_OF_YEAR, 1)
             }
             return bitmap
         }
 
         private fun getStreakColor(count: Int): Int {
             return when {
-                count == 0 -> Color.parseColor("#2D333B") // Dark Gray (Empty/Background)
-                count <= 2 -> Color.parseColor("#0E4429") // Dark Green (Low)
+                count == 0 -> Color.parseColor("#2D333B") // Dark Gray
+                count <= 2 -> Color.parseColor("#0E4429") // Dark Green
                 count <= 5 -> Color.parseColor("#006D32") // Medium Green
                 count <= 10 -> Color.parseColor("#26A641") // Bright Green
-                else -> Color.parseColor("#39D353")       // Neon Green (High)
+                else -> Color.parseColor("#39D353")       // Neon Green
             }
         }
 
@@ -227,7 +212,6 @@ class LeetCodeWidget : AppWidgetProvider() {
                     calendar.get(Calendar.DAY_OF_MONTH)
                 )
                 
-                // Special case: If it's today and 0, don't break streak yet, just continue to yesterday
                 if (isToday(calendar) && (data[dateKey] ?: 0) == 0) {
                      calendar.add(Calendar.DAY_OF_YEAR, -1)
                      continue
