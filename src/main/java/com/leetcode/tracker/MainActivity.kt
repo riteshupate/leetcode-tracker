@@ -21,9 +21,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.google.android.material.card.MaterialCardView
 import com.google.android.material.snackbar.Snackbar
 import com.leetcode.tracker.api.LeetCodeApi
+import com.leetcode.tracker.api.LeetCodeUserData
 import com.leetcode.tracker.notifications.DailyReminderReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -101,16 +101,20 @@ class MainActivity : AppCompatActivity() {
         
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // FIXED: Returns LeetCodeUserData object now
+                // Returns LeetCodeUserData (total + calendar)
                 val userData = leetCodeApi.getUserSubmissions(userId)
                 
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
                     if (userData != null) {
                         displayStreakMap(userData.submissionCalendar)
-                        displayStats(userData) // Pass full object
+                        displayStats(userData)
                     } else {
-                        Toast.makeText(this@MainActivity, "Failed to load", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Failed to load data. Check user ID.",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
             } catch (e: Exception) {
@@ -129,7 +133,6 @@ class MainActivity : AppCompatActivity() {
     private fun displayStreakMap(data: Map<String, Int>) {
         streakGrid.removeAllViews()
         
-        val calendar = Calendar.getInstance()
         val daysToShow = 365
         
         // Create grid of days (52 weeks x 7 days)
@@ -179,9 +182,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    private fun displayStats(data: com.leetcode.tracker.api.LeetCodeUserData) {
-        val total = data.totalSolved // FIXED: Use actual total from API
-        val streak = calculateCurrentStreak(data.submissionCalendar)
+    private fun displayStats(userData: LeetCodeUserData) {
+        val total = userData.totalSolved
+        val streak = calculateCurrentStreak(userData.submissionCalendar)
         
         totalSolvedText.text = "Total Solved: $total"
         currentStreakText.text = "Current Streak: $streak days"
@@ -252,7 +255,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
-        // FIXED: Use setExactAndAllowWhileIdle for accurate timing even in Doze mode
+        // Use exact alarm for accurate timing
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
