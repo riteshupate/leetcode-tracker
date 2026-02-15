@@ -9,7 +9,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
-// Data class to hold the specific data we need
 data class LeetCodeUserData(
     val totalSolved: Int,
     val submissionCalendar: Map<String, Int>
