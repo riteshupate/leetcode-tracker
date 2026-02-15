@@ -69,9 +69,14 @@ class LeetCodeWidget : AppWidgetProvider() {
 
                     if (userData != null) {
                         val data = userData.submissionCalendar
-                        val total = userData.totalSolved
                         val streak = calculateCurrentStreak(data)
-                        val todayKey = getTodayKey()
+                        val total = userData.totalSolved
+                        val todayKey = String.format(
+                            "%d-%02d-%02d",
+                            Calendar.getInstance().get(Calendar.YEAR),
+                            Calendar.getInstance().get(Calendar.MONTH) + 1,
+                            Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+                        )
                         val solvedToday = (data[todayKey] ?: 0) > 0
 
                         val heatmapBitmap = drawHeatmap(data)
@@ -107,13 +112,14 @@ class LeetCodeWidget : AppWidgetProvider() {
             val cellSize = 20f
             val spacing = 4f
             val monthLabelHeight = 30f
-            val monthGap = 15f 
             
-            // 1. Calculate Width
+            // FIXED: Gap equals one full column (cell width + spacing)
+            val monthGap = cellSize + spacing 
+            
+            // 1. Calculate Width dynamically
             var currentX = 0f
             val calendar = Calendar.getInstance()
             calendar.add(Calendar.WEEK_OF_YEAR, -(weeksToShow - 1))
-            // Start from Sunday of that week
             while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
                  calendar.add(Calendar.DAY_OF_YEAR, -1)
             }
@@ -122,14 +128,20 @@ class LeetCodeWidget : AppWidgetProvider() {
             var prevMonth = -1
             val today = Calendar.getInstance()
             
-            // Sim loop
+            // Simulation to determine bitmap width
             val simCal = startCal.clone() as Calendar
             while (!simCal.after(today)) {
                 val month = simCal.get(Calendar.MONTH)
                 val dayOfWeek = simCal.get(Calendar.DAY_OF_WEEK) - 1
 
-                if (dayOfWeek == 0) currentX += cellSize + spacing
-                if (month != prevMonth && prevMonth != -1) currentX += monthGap
+                if (dayOfWeek == 0) {
+                    currentX += cellSize + spacing
+                }
+                
+                // Add full column gap for new month
+                if (month != prevMonth && prevMonth != -1) {
+                    currentX += monthGap
+                }
                 prevMonth = month
                 simCal.add(Calendar.DAY_OF_YEAR, 1)
             }
@@ -147,7 +159,7 @@ class LeetCodeWidget : AppWidgetProvider() {
                 isAntiAlias = true
             }
 
-            // 2. Draw
+            // 2. Actual Drawing
             currentX = 0f
             prevMonth = -1
             val drawCal = startCal.clone() as Calendar
@@ -156,11 +168,14 @@ class LeetCodeWidget : AppWidgetProvider() {
                 val month = drawCal.get(Calendar.MONTH)
                 val dayOfWeek = drawCal.get(Calendar.DAY_OF_WEEK) - 1
 
-                if (dayOfWeek == 0) currentX += cellSize + spacing
+                if (dayOfWeek == 0) {
+                    currentX += cellSize + spacing
+                }
                 
+                // Split logic: If month changes, skip a full column width (monthGap)
                 if (month != prevMonth && prevMonth != -1) {
                     currentX += monthGap
-                    // Label
+                    // Draw label in the gap
                     val monthName = drawCal.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.US)
                     canvas.drawText(monthName ?: "", currentX, height - 5f, textPaint)
                 }
@@ -175,7 +190,6 @@ class LeetCodeWidget : AppWidgetProvider() {
 
                 val count = data[dateKey] ?: 0
                 paint.color = getStreakColor(count)
-                
                 val top = dayOfWeek * (cellSize + spacing)
                 
                 canvas.drawRoundRect(
