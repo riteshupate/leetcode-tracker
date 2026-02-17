@@ -24,18 +24,20 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       
-    # CRITICAL: Accept licenses for the new Android 16 (API 36) SDK
+    # --- FIX STARTS HERE ---
+    - name: Make gradlew executable
+      run: chmod +x gradlew
+    # --- FIX ENDS HERE ---
+
     - name: Accept Android SDK Licenses
       run: |
         yes | "$ANDROID_HOME"/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
     - name: Build Debug APK
-      # Uses the wrapper to ensure Gradle 8.10 is used (required for your plugins)
       run: ./gradlew assembleDebug --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: leetcode-tracker-android16-debug
-        # CORRECTED PATH: Removed 'app/' prefix to match your verified folder structure
         path: build/outputs/apk/debug/*.apk
