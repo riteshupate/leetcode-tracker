@@ -10,7 +10,8 @@
 
     <application
         android:allowBackup="true"
-        android:icon="@drawable/leetcode_tracker_icon" 
+        android:icon="@drawable/leetcode_tracker_icon"
+        android:roundIcon="@drawable/leetcode_tracker_icon" 
         android:label="@string/app_name"
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.LeetCodeTracker">
