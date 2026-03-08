@@ -200,18 +200,13 @@ class LeetCodeWidget : AppWidgetProvider() {
         }
 
         private fun getStreakColor(count: Int): Int {
-            return when (count) {
-                0    -> Color.parseColor("#2D333B") // no activity – dark gray
-                1    -> Color.parseColor("#0d3817") // darkest green
-                2    -> Color.parseColor("#0e4429")
-                3    -> Color.parseColor("#145e38")
-                4    -> Color.parseColor("#196f40")
-                5    -> Color.parseColor("#1e8048")
-                6    -> Color.parseColor("#26a641")
-                7    -> Color.parseColor("#2db84a")
-                8    -> Color.parseColor("#33cc52")
-                9    -> Color.parseColor("#39d353")
-                else -> Color.parseColor("#6bff8e") // 10+ – lightest green
+            return when {
+                count == 0 -> Color.parseColor("#2D333B") // no activity – dark gray
+                count == 1 -> Color.parseColor("#0e4429") // darkest green
+                count == 2 -> Color.parseColor("#196f40")
+                count == 3 -> Color.parseColor("#26a641")
+                count == 4 -> Color.parseColor("#39d353")
+                else       -> Color.parseColor("#6bff8e") // 5+ – brightest green
             }
         }
 
