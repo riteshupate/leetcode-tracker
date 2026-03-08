@@ -79,21 +79,23 @@ class LeetCodeWidget : AppWidgetProvider() {
                         )
                         val solvedToday = (data[todayKey] ?: 0) > 0
 
-                        val heatmapBitmap = drawHeatmap(data)
+                        // ── Compute max once, pass into drawHeatmap for relative scaling ──
+                        val maxCount = data.values.maxOrNull() ?: 1
+                        val heatmapBitmap = drawHeatmap(data, maxCount)
 
                         views.setTextViewText(R.id.widgetStreak, "$streak Days")
                         views.setTextViewText(R.id.widgetTotal, "$total Solved")
-                        
+
                         views.setTextViewText(
                             R.id.widgetTodayStatus,
                             if (solvedToday) "Completed" else "Unfinished"
                         )
-                        
+
                         views.setTextColor(
                             R.id.widgetTodayStatus,
                             if (solvedToday) Color.parseColor("#39D353") else Color.parseColor("#FFA726")
                         )
-                        
+
                         views.setImageViewBitmap(R.id.widgetHeatmap, heatmapBitmap)
                         appWidgetManager.updateAppWidget(appWidgetId, views)
                     }
@@ -106,29 +108,26 @@ class LeetCodeWidget : AppWidgetProvider() {
             }
         }
 
-        private fun drawHeatmap(data: Map<String, Int>): Bitmap {
+        private fun drawHeatmap(data: Map<String, Int>, maxCount: Int): Bitmap {
             val weeksToShow = 20
             val daysInWeek = 7
             val cellSize = 20f
             val spacing = 4f
             val monthLabelHeight = 30f
-            
-            // FIXED: Gap equals one full column (cell width + spacing)
-            val monthGap = cellSize + spacing 
-            
-            // 1. Calculate Width dynamically
+            val monthGap = cellSize + spacing
+
+            // 1. Calculate width dynamically
             var currentX = 0f
             val calendar = Calendar.getInstance()
             calendar.add(Calendar.WEEK_OF_YEAR, -(weeksToShow - 1))
             while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
-                 calendar.add(Calendar.DAY_OF_YEAR, -1)
+                calendar.add(Calendar.DAY_OF_YEAR, -1)
             }
-            
+
             val startCal = calendar.clone() as Calendar
             var prevMonth = -1
             val today = Calendar.getInstance()
-            
-            // Simulation to determine bitmap width
+
             val simCal = startCal.clone() as Calendar
             while (!simCal.after(today)) {
                 val month = simCal.get(Calendar.MONTH)
@@ -137,8 +136,7 @@ class LeetCodeWidget : AppWidgetProvider() {
                 if (dayOfWeek == 0) {
                     currentX += cellSize + spacing
                 }
-                
-                // Add full column gap for new month
+
                 if (month != prevMonth && prevMonth != -1) {
                     currentX += monthGap
                 }
@@ -148,18 +146,18 @@ class LeetCodeWidget : AppWidgetProvider() {
 
             val width = currentX.toInt() + 20
             val height = ((cellSize + spacing) * daysInWeek + monthLabelHeight).toInt()
-            
+
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             val paint = Paint()
             val textPaint = Paint().apply {
-                color = Color.parseColor("#8B949E") 
+                color = Color.parseColor("#8B949E")
                 textSize = 20f
                 typeface = Typeface.DEFAULT_BOLD
                 isAntiAlias = true
             }
 
-            // 2. Actual Drawing
+            // 2. Actual drawing
             currentX = 0f
             prevMonth = -1
             val drawCal = startCal.clone() as Calendar
@@ -171,11 +169,9 @@ class LeetCodeWidget : AppWidgetProvider() {
                 if (dayOfWeek == 0) {
                     currentX += cellSize + spacing
                 }
-                
-                // Split logic: If month changes, skip a full column width (monthGap)
+
                 if (month != prevMonth && prevMonth != -1) {
                     currentX += monthGap
-                    // Draw label in the gap
                     val monthName = drawCal.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.US)
                     canvas.drawText(monthName ?: "", currentX, height - 5f, textPaint)
                 }
@@ -189,13 +185,15 @@ class LeetCodeWidget : AppWidgetProvider() {
                 )
 
                 val count = data[dateKey] ?: 0
-                paint.color = getStreakColor(count)
+
+                // ── Color is now relative to user's personal max ──
+                paint.color = getStreakColor(count, maxCount)
+
                 val top = dayOfWeek * (cellSize + spacing)
-                
                 canvas.drawRoundRect(
-                    currentX, top, 
-                    currentX + cellSize, top + cellSize, 
-                    4f, 4f, 
+                    currentX, top,
+                    currentX + cellSize, top + cellSize,
+                    4f, 4f,
                     paint
                 )
 
@@ -204,20 +202,32 @@ class LeetCodeWidget : AppWidgetProvider() {
             return bitmap
         }
 
-        private fun getStreakColor(count: Int): Int {
-            return when {
-                count == 0 -> Color.parseColor("#2D333B") // Dark Gray
-                count <= 2 -> Color.parseColor("#0E4429") // Dark Green
-                count <= 5 -> Color.parseColor("#006D32") // Medium Green
-                count <= 10 -> Color.parseColor("#26A641") // Bright Green
-                else -> Color.parseColor("#39D353")       // Neon Green
-            }
+        /**
+         * Percentage-based green using HSV — identical logic to MainActivity.
+         *
+         *  count == 0          → dark gray (#2D333B), no activity
+         *  count / maxCount    → 0.0…1.0 percentage
+         *  value = 0.75 - (percentage × 0.45)
+         *    • 1 sub on a high-max day → value ≈ 0.75 → lightest green
+         *    • personal max day        → value = 0.30 → darkest green
+         */
+        private fun getStreakColor(count: Int, maxCount: Int): Int {
+            if (count == 0) return Color.parseColor("#2D333B")
+
+            val percentage = count.toFloat() / maxCount.toFloat()
+            val value = 0.75f - (percentage * 0.45f)
+
+            return Color.HSVToColor(floatArrayOf(
+                120f,   // Hue       – pure green
+                0.80f,  // Saturation – vivid but not neon
+                value   // Value     – lighter for fewer, darker for more
+            ))
         }
 
         private fun calculateCurrentStreak(data: Map<String, Int>): Int {
             var streak = 0
             val calendar = Calendar.getInstance()
-            
+
             while (true) {
                 val dateKey = String.format(
                     "%d-%02d-%02d",
@@ -225,10 +235,10 @@ class LeetCodeWidget : AppWidgetProvider() {
                     calendar.get(Calendar.MONTH) + 1,
                     calendar.get(Calendar.DAY_OF_MONTH)
                 )
-                
+
                 if (isToday(calendar) && (data[dateKey] ?: 0) == 0) {
-                     calendar.add(Calendar.DAY_OF_YEAR, -1)
-                     continue
+                    calendar.add(Calendar.DAY_OF_YEAR, -1)
+                    continue
                 }
 
                 if ((data[dateKey] ?: 0) > 0) {
