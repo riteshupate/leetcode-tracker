@@ -64,12 +64,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // ENABLE EDGE-TO-EDGE (Required for Android 15/16+)
         enableEdgeToEdge()
         
         setContentView(R.layout.activity_main)
         
-        // HANDLE WINDOW INSETS (Prevents UI from hiding behind status/nav bars)
         val rootView = findViewById<View>(android.R.id.content)
         ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -86,7 +84,6 @@ class MainActivity : AppCompatActivity() {
         createNotificationChannel()
         requestNotificationPermission()
         
-        // Load saved user ID
         val savedUserId = sharedPrefs.getString("user_id", "")
         if (!savedUserId.isNullOrEmpty()) {
             userIdInput.setText(savedUserId)
@@ -128,7 +125,6 @@ class MainActivity : AppCompatActivity() {
         
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Returns LeetCodeUserData (total + calendar)
                 val userData = leetCodeApi.getUserSubmissions(userId)
                 
                 withContext(Dispatchers.Main) {
@@ -163,36 +159,34 @@ class MainActivity : AppCompatActivity() {
         val cellSpacing = 4f
         val textHeight = 40f
         val daysInWeek = 7
-        
-        // FIXED: Month gap is now exactly one full column width (cell + spacing)
-        val monthGap = cellSize + cellSpacing 
+        val monthGap = cellSize + cellSpacing
 
-        // 1. Calculate Width dynamically
+        // ── Compute max submissions across all days for relative color scaling ──
+        val maxCount = data.values.maxOrNull() ?: 1
+
+        // 1. Calculate width dynamically
         var currentX = 0f
         val calendar = Calendar.getInstance()
         calendar.add(Calendar.DAY_OF_YEAR, -(daysToShow - 1))
         
-        // Find the start of the week for the first date
         while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
             calendar.add(Calendar.DAY_OF_YEAR, -1)
         }
         val startCalendar = calendar.clone() as Calendar
 
-        // Simulate loop to get exact width including separator columns
         val simCal = startCalendar.clone() as Calendar
         var prevMonth = -1
         
         while (!simCal.after(Calendar.getInstance())) {
             val month = simCal.get(Calendar.MONTH)
-            val dayOfWeek = simCal.get(Calendar.DAY_OF_WEEK) - 1 // 0=Sun, 6=Sat
+            val dayOfWeek = simCal.get(Calendar.DAY_OF_WEEK) - 1
 
             if (dayOfWeek == 0) {
                 currentX += cellSize + cellSpacing
             }
             
-            // If month changes, we add the separator space
             if (month != prevMonth && prevMonth != -1) {
-                currentX += monthGap 
+                currentX += monthGap
             }
             prevMonth = month
             simCal.add(Calendar.DAY_OF_YEAR, 1)
@@ -211,7 +205,7 @@ class MainActivity : AppCompatActivity() {
             isAntiAlias = true
         }
 
-        // 2. Draw with separation logic
+        // 2. Draw cells
         currentX = 0f
         val drawCal = startCalendar.clone() as Calendar
         prevMonth = -1
@@ -221,16 +215,12 @@ class MainActivity : AppCompatActivity() {
             val month = drawCal.get(Calendar.MONTH)
             val dayOfWeek = drawCal.get(Calendar.DAY_OF_WEEK) - 1
             
-            // New column on Sunday
             if (dayOfWeek == 0) {
                 currentX += cellSize + cellSpacing
             }
             
-            // Check for Month Change -> Insert Space Column
             if (month != prevMonth && prevMonth != -1) {
-                currentX += monthGap // This adds the full empty column space
-                
-                // Draw Month Label in the gap
+                currentX += monthGap
                 val monthName = drawCal.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.US)
                 canvas.drawText(monthName ?: "", currentX, height - 10f, textPaint)
             }
@@ -244,9 +234,11 @@ class MainActivity : AppCompatActivity() {
             )
 
             val count = data[dateKey] ?: 0
-            paint.color = getStreakColor(count)
+
+            // ── Pass maxCount so color is relative to user's own activity ──
+            paint.color = getStreakColor(count, maxCount)
+
             val top = dayOfWeek * (cellSize + cellSpacing)
-            
             canvas.drawRoundRect(
                 currentX, top,
                 currentX + cellSize, top + cellSize,
@@ -259,15 +251,33 @@ class MainActivity : AppCompatActivity() {
 
         streakHeatmap.setImageBitmap(bitmap)
     }
-    
-    private fun getStreakColor(count: Int): Int {
-        return when {
-            count == 0 -> Color.parseColor("#2D333B") // Dark Gray
-            count <= 2 -> Color.parseColor("#0E4429") // Dark Green
-            count <= 5 -> Color.parseColor("#006D32") // Medium Green
-            count <= 10 -> Color.parseColor("#26A641") // Bright Green
-            else -> Color.parseColor("#39D353")       // Neon Green
-        }
+
+    /**
+     * Returns a green color whose lightness (HSV value) scales continuously
+     * with how many submissions were made relative to the user's personal max.
+     *
+     *  count == 0          → flat dark gray (#2D333B), no activity
+     *  count == 1, max=10  → percentage 10%  → very light green (value ≈ 0.72)
+     *  count == 10, max=10 → percentage 100% → rich dark green  (value = 0.30)
+     *
+     * Formula:  value = 0.75 - (percentage * 0.45)
+     *   • Lightest possible : 0.75  (1 submission when max is huge)
+     *   • Darkest possible  : 0.30  (matches personal max)
+     */
+    private fun getStreakColor(count: Int, maxCount: Int): Int {
+        if (count == 0) return Color.parseColor("#2D333B") // no activity
+
+        val percentage = count.toFloat() / maxCount.toFloat() // 0.0 → 1.0
+
+        // More submissions  → lower value → darker green
+        // Fewer submissions → higher value → lighter green
+        val value = 0.75f - (percentage * 0.45f)
+
+        return Color.HSVToColor(floatArrayOf(
+            120f,   // Hue   – pure green
+            0.80f,  // Saturation – vivid but not neon
+            value   // Value – varies smoothly by submission count
+        ))
     }
     
     private fun displayStats(userData: LeetCodeUserData) {
@@ -351,7 +361,7 @@ class MainActivity : AppCompatActivity() {
                     pendingIntent
                 )
             } else {
-                 alarmManager.setExactAndAllowWhileIdle(
+                alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
                     calendar.timeInMillis,
                     pendingIntent
