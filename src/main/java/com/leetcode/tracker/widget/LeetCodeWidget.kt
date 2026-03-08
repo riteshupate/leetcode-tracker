@@ -79,9 +79,7 @@ class LeetCodeWidget : AppWidgetProvider() {
                         )
                         val solvedToday = (data[todayKey] ?: 0) > 0
 
-                        // ── Compute max once, pass into drawHeatmap for relative scaling ──
-                        val maxCount = data.values.maxOrNull() ?: 1
-                        val heatmapBitmap = drawHeatmap(data, maxCount)
+                        val heatmapBitmap = drawHeatmap(data)
 
                         views.setTextViewText(R.id.widgetStreak, "$streak Days")
                         views.setTextViewText(R.id.widgetTotal, "$total Solved")
@@ -108,7 +106,7 @@ class LeetCodeWidget : AppWidgetProvider() {
             }
         }
 
-        private fun drawHeatmap(data: Map<String, Int>, maxCount: Int): Bitmap {
+        private fun drawHeatmap(data: Map<String, Int>): Bitmap {
             val weeksToShow = 20
             val daysInWeek = 7
             val cellSize = 20f
@@ -186,8 +184,7 @@ class LeetCodeWidget : AppWidgetProvider() {
 
                 val count = data[dateKey] ?: 0
 
-                // ── Color is now relative to user's personal max ──
-                paint.color = getStreakColor(count, maxCount)
+                paint.color = getStreakColor(count)
 
                 val top = dayOfWeek * (cellSize + spacing)
                 canvas.drawRoundRect(
@@ -202,26 +199,20 @@ class LeetCodeWidget : AppWidgetProvider() {
             return bitmap
         }
 
-        /**
-         * Percentage-based green using HSV — identical logic to MainActivity.
-         *
-         *  count == 0          → dark gray (#2D333B), no activity
-         *  count / maxCount    → 0.0…1.0 percentage
-         *  value = 0.75 - (percentage × 0.45)
-         *    • 1 sub on a high-max day → value ≈ 0.75 → lightest green
-         *    • personal max day        → value = 0.30 → darkest green
-         */
-        private fun getStreakColor(count: Int, maxCount: Int): Int {
-            if (count == 0) return Color.parseColor("#2D333B")
-
-            val percentage = count.toFloat() / maxCount.toFloat()
-            val value = 0.75f - (percentage * 0.45f)
-
-            return Color.HSVToColor(floatArrayOf(
-                120f,   // Hue       – pure green
-                0.80f,  // Saturation – vivid but not neon
-                value   // Value     – lighter for fewer, darker for more
-            ))
+        private fun getStreakColor(count: Int): Int {
+            return when (count) {
+                0    -> Color.parseColor("#2D333B") // no activity – dark gray
+                1    -> Color.parseColor("#0d3817") // darkest green
+                2    -> Color.parseColor("#0e4429")
+                3    -> Color.parseColor("#145e38")
+                4    -> Color.parseColor("#196f40")
+                5    -> Color.parseColor("#1e8048")
+                6    -> Color.parseColor("#26a641")
+                7    -> Color.parseColor("#2db84a")
+                8    -> Color.parseColor("#33cc52")
+                9    -> Color.parseColor("#39d353")
+                else -> Color.parseColor("#6bff8e") // 10+ – lightest green
+            }
         }
 
         private fun calculateCurrentStreak(data: Map<String, Int>): Int {
