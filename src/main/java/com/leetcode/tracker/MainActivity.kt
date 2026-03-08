@@ -161,9 +161,6 @@ class MainActivity : AppCompatActivity() {
         val daysInWeek = 7
         val monthGap = cellSize + cellSpacing
 
-        // ── Compute max submissions across all days for relative color scaling ──
-        val maxCount = data.values.maxOrNull() ?: 1
-
         // 1. Calculate width dynamically
         var currentX = 0f
         val calendar = Calendar.getInstance()
@@ -235,8 +232,7 @@ class MainActivity : AppCompatActivity() {
 
             val count = data[dateKey] ?: 0
 
-            // ── Pass maxCount so color is relative to user's own activity ──
-            paint.color = getStreakColor(count, maxCount)
+                paint.color = getStreakColor(count)
 
             val top = dayOfWeek * (cellSize + cellSpacing)
             canvas.drawRoundRect(
@@ -252,32 +248,20 @@ class MainActivity : AppCompatActivity() {
         streakHeatmap.setImageBitmap(bitmap)
     }
 
-    /**
-     * Returns a green color whose lightness (HSV value) scales continuously
-     * with how many submissions were made relative to the user's personal max.
-     *
-     *  count == 0          → flat dark gray (#2D333B), no activity
-     *  count == 1, max=10  → percentage 10%  → very light green (value ≈ 0.72)
-     *  count == 10, max=10 → percentage 100% → rich dark green  (value = 0.30)
-     *
-     * Formula:  value = 0.75 - (percentage * 0.45)
-     *   • Lightest possible : 0.75  (1 submission when max is huge)
-     *   • Darkest possible  : 0.30  (matches personal max)
-     */
-    private fun getStreakColor(count: Int, maxCount: Int): Int {
-        if (count == 0) return Color.parseColor("#2D333B") // no activity
-
-        val percentage = count.toFloat() / maxCount.toFloat() // 0.0 → 1.0
-
-        // More submissions  → lower value → darker green
-        // Fewer submissions → higher value → lighter green
-        val value = 0.75f - (percentage * 0.45f)
-
-        return Color.HSVToColor(floatArrayOf(
-            120f,   // Hue   – pure green
-            0.80f,  // Saturation – vivid but not neon
-            value   // Value – varies smoothly by submission count
-        ))
+    private fun getStreakColor(count: Int): Int {
+        return when (count) {
+            0    -> Color.parseColor("#2D333B") // no activity – dark gray
+            1    -> Color.parseColor("#0d3817") // darkest green
+            2    -> Color.parseColor("#0e4429")
+            3    -> Color.parseColor("#145e38")
+            4    -> Color.parseColor("#196f40")
+            5    -> Color.parseColor("#1e8048")
+            6    -> Color.parseColor("#26a641")
+            7    -> Color.parseColor("#2db84a")
+            8    -> Color.parseColor("#33cc52")
+            9    -> Color.parseColor("#39d353")
+            else -> Color.parseColor("#6bff8e") // 10+ – lightest green
+        }
     }
     
     private fun displayStats(userData: LeetCodeUserData) {
