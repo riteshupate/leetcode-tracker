@@ -44,6 +44,53 @@ class LeetCodeWidget : AppWidgetProvider() {
         }
     }
 
+    // --- ALARM MANAGER 5-MINUTE REFRESH CODE START ---
+    
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        // Starts the 5-minute timer when the first widget is added to the home screen
+        scheduleWidgetUpdate(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        // Stops the timer when the last widget is removed to save battery
+        cancelWidgetUpdate(context)
+    }
+
+    private fun scheduleWidgetUpdate(context: Context) {
+        val intent = Intent(context, LeetCodeWidget::class.java).apply {
+            action = "com.leetcode.tracker.REFRESH_WIDGET"
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        
+        val interval = 5 * 60 * 1000L // 5 minutes in milliseconds
+        
+        // Sets a repeating alarm that triggers our custom REFRESH_WIDGET action
+        alarmManager.setRepeating(
+            android.app.AlarmManager.RTC,
+            System.currentTimeMillis() + interval,
+            interval,
+            pendingIntent
+        )
+    }
+
+    private fun cancelWidgetUpdate(context: Context) {
+        val intent = Intent(context, LeetCodeWidget::class.java).apply {
+            action = "com.leetcode.tracker.REFRESH_WIDGET"
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        alarmManager.cancel(pendingIntent)
+    }
+    
+    // --- ALARM MANAGER 5-MINUTE REFRESH CODE END ---
+
     companion object {
         fun updateAppWidget(
             context: Context,
